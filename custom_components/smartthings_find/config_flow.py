@@ -9,7 +9,9 @@ from homeassistant.config_entries import (
 )
 from .const import (
     DOMAIN,
-    CONF_JSESSIONID,
+    CONF_ACCESS_TOKEN,
+    CONF_CLIENT_ID,
+    CONF_CODE_VERIFIER,
     CONF_UPDATE_INTERVAL,
     CONF_UPDATE_INTERVAL_DEFAULT,
     CONF_ACTIVE_MODE_SMARTTAGS,
@@ -20,11 +22,91 @@ from .const import (
 from .utils import do_login_stage_one
 import asyncio
 import logging
-
+import hashlib
+import base64
+import secrets
+import aiohttp
 
 _LOGGER = logging.getLogger(__name__)
 
 class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    OAUTH2_AUTH_URL = "https://account.samsung.com/accounts/v1/FMM2/signInGate"
+    OAUTH2_TOKEN_URL = "https://account.samsung.com/accounts/v1/FMM2/token"
+    REDIRECT_URI = "https://smartthingsfind.samsung.com/login.do"
+    CLIENT_ID = "ntly6zvfpn"  # Default client_id for SmartThings Find
+
+    async def async_step_user(self, user_input=None):
+        """Start OAuth2 PKCE flow: generate code_verifier, code_challenge, show auth URL."""
+        # Generate PKCE code_verifier and code_challenge
+        code_verifier = self.secrets.token_urlsafe(64)
+        code_challenge = self.base64.urlsafe_b64encode(
+            self.hashlib.sha256(code_verifier.encode()).digest()
+        ).rstrip(b'=').decode('utf-8')
+
+        # Store for later
+        self.code_verifier = code_verifier
+        self.code_challenge = code_challenge
+
+        # Build authorization URL
+        state = self.secrets.token_urlsafe(16)
+        auth_url = (
+            f"{self.OAUTH2_AUTH_URL}?response_type=code"
+            f"&client_id={self.CLIENT_ID}"
+            f"&redirect_uri={self.REDIRECT_URI}"
+            f"&code_challenge={code_challenge}"
+            f"&code_challenge_method=S256"
+            f"&scope=iot.client"
+            f"&state={state}"
+        )
+
+        # Show form with link and field for code
+        return self.async_show_form(
+            step_id="code",
+            description_placeholders={"auth_url": auth_url},
+            data_schema=vol.Schema({vol.Required("code"): str}),
+        )
+
+    async def async_step_code(self, user_input=None):
+        """Receive authorization code, exchange for tokens."""
+        errors = {}
+        if user_input is not None:
+            code = user_input.get("code")
+            if not code:
+                errors["base"] = "missing_code"
+            else:
+                # Exchange code for tokens
+                async with self.aiohttp.ClientSession() as session:
+                    data = {
+                        "grant_type": "authorization_code",
+                        "code": code,
+                        "redirect_uri": self.REDIRECT_URI,
+                        "client_id": self.CLIENT_ID,
+                        "code_verifier": self.code_verifier,
+                    }
+                    async with session.post(self.OAUTH2_TOKEN_URL, data=data) as resp:
+                        if resp.status != 200:
+                            errors["base"] = "token_error"
+                        else:
+                            tokens = await resp.json()
+                            access_token = tokens.get("access_token")
+                            refresh_token = tokens.get("refresh_token")
+                            if not access_token or not refresh_token:
+                                errors["base"] = "token_error"
+                            else:
+                                # Save tokens
+                                data = {
+                                    CONF_ACCESS_TOKEN: access_token,
+                                    CONF_CLIENT_ID: self.CLIENT_ID,
+                                    CONF_CODE_VERIFIER: self.code_verifier,
+                                    "refresh_token": refresh_token,
+                                }
+                                return self.async_create_entry(title="SmartThings Find", data=data)
+
+        return self.async_show_form(
+            step_id="code",
+            errors=errors,
+            data_schema=vol.Schema({vol.Required("code"): str}),
+        )
     """Handle a config flow for SmartThings Find."""
 
     VERSION = 1
@@ -38,7 +120,9 @@ class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     qr_url = None
     session = None
 
-    jsessionid = None
+    access_token = None
+    client_id = None
+    code_verifier = None
 
 
     error = None
@@ -95,18 +179,26 @@ class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return await self.async_step_finish(user_input)
 
     async def async_step_finish(self, user_input=None):
-        """Prompt for JSESSIONID and create entry."""
+        """Prompt for OAuth2 PKCE credentials and create entry."""
         errors = {}
         if user_input is not None:
-            jsessionid = user_input.get(CONF_JSESSIONID)
-            if not jsessionid:
-                errors["base"] = "missing_jsessionid"
+            access_token = user_input.get(CONF_ACCESS_TOKEN)
+            client_id = user_input.get(CONF_CLIENT_ID)
+            code_verifier = user_input.get(CONF_CODE_VERIFIER)
+            if not access_token or not client_id or not code_verifier:
+                errors["base"] = "missing_oauth2_pkce"
             else:
-                data = {CONF_JSESSIONID: jsessionid}
+                data = {
+                    CONF_ACCESS_TOKEN: access_token,
+                    CONF_CLIENT_ID: client_id,
+                    CONF_CODE_VERIFIER: code_verifier
+                }
                 return self.async_create_entry(title="SmartThings Find", data=data)
 
         data_schema = vol.Schema({
-            vol.Required(CONF_JSESSIONID): str
+            vol.Required(CONF_ACCESS_TOKEN): str,
+            vol.Required(CONF_CLIENT_ID): str,
+            vol.Required(CONF_CODE_VERIFIER): str
         })
         return self.async_show_form(
             step_id="finish",

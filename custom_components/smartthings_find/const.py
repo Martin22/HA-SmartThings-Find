@@ -1,6 +1,8 @@
 DOMAIN = "smartthings_find"
 
-CONF_JSESSIONID = "jsessionid"
+CONF_ACCESS_TOKEN = "access_token"
+CONF_CLIENT_ID = "client_id"
+CONF_CODE_VERIFIER = "code_verifier"
 
 CONF_ACTIVE_MODE_SMARTTAGS = "active_mode_smarttags"
 CONF_ACTIVE_MODE_OTHERS = "active_mode_others"

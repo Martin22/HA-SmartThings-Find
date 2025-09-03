@@ -11,7 +11,6 @@ from homeassistant.config_entries import ConfigEntry
 
 from .const import (
     DOMAIN,
-    CONF_JSESSIONID,
     CONF_ACTIVE_MODE_OTHERS,
     CONF_ACTIVE_MODE_OTHERS_DEFAULT,
     CONF_ACTIVE_MODE_SMARTTAGS,
@@ -35,11 +34,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     hass.data[DOMAIN][entry.entry_id] = {}
 
-    # Load the jsessionid from the config and create a session from it
-    jsessionid = entry.data[CONF_JSESSIONID]
+    # Load OAuth2 PKCE credentials from config
+    access_token = entry.data.get("access_token")
+    client_id = entry.data.get("client_id")
+    code_verifier = entry.data.get("code_verifier")
 
     session = async_get_clientsession(hass)
-    session.cookie_jar.update_cookies({"JSESSIONID": jsessionid})
+    # Set Authorization header for Bearer token
+    session.headers.update({"Authorization": f"Bearer {access_token}"})
 
     active_smarttags = entry.options.get(CONF_ACTIVE_MODE_SMARTTAGS, CONF_ACTIVE_MODE_SMARTTAGS_DEFAULT)
     active_others = entry.options.get(CONF_ACTIVE_MODE_OTHERS, CONF_ACTIVE_MODE_OTHERS_DEFAULT)
@@ -47,6 +49,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id].update({
         CONF_ACTIVE_MODE_SMARTTAGS:  active_smarttags,
         CONF_ACTIVE_MODE_OTHERS: active_others,
+        "access_token": access_token,
+        "client_id": client_id,
+        "code_verifier": code_verifier,
     })
 
     # This raises ConfigEntryAuthFailed-exception if failed. So if we
@@ -68,7 +73,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
     
     hass.data[DOMAIN][entry.entry_id].update({
-        CONF_JSESSIONID: jsessionid,
         "session": session,
         "coordinator": coordinator,
         "devices": devices

@@ -22,7 +22,7 @@ This integration does **not** allow you to perform actions based on button press
 - **Feature Constraints**: The integration can only support features available on the [SmartThings Find website](https://smartthingsfind.samsung.com/). For instance, stopping a SmartTag from ringing is not possible due to API limitations (while other devices do support this; not yet implemented)
 
 ## Notes on authentication
-The integration simulates Samsung login using QR code. It stores the retrieved JSESSIONID-Cookie and uses it for further requests. **It is not yet known, how long exactly the session is valid!** While it did work at least for several weeks for me and others, there's no definite answer and the session might become invalid anytime! As a precaution I implemented a reauth-flow: In case the session expires, Home Assistant will inform you and you can easily repeat the QR code login process.
+This integration now uses OAuth2 PKCE authentication as described in [uTag wiki](https://github.com/KieronQuinn/uTag/wiki/Authentication). You will need to obtain your `access_token`, `client_id` and `code_verifier` using the PKCE flow. Follow the instructions in the uTag wiki to generate these values. Enter them in the Home Assistant integration setup form.
 
 ## Notes on connection to the devices
 Being able to let a SmartTag ring depends on a phone/tablet nearby which forwards your request via Bluetooth. If your phone is not near your tag, you can't make it ring. The location should still update if any Galaxy device is nearby. 
@@ -62,9 +62,8 @@ By default active mode is enabled for SmartTags but disabled for any other devic
 2. Search for "SmartThings *Find*" (**do not confuse this with the built-in SmartThings integration!**)  
 3. Visit https://smartthingsfind.samsung.com/ and log in with your Samsung account.  
 4. Open Developer Tools in your browser.  
-5. Follow the instructions below and copy the JSESSIONID value:  
-![screenshot](media/alternative_login_flow.png)  
-6. Enter your JSESSIONID into Home Assistant.  
+5. Follow the instructions in [uTag wiki](https://github.com/KieronQuinn/uTag/wiki/Authentication) to obtain your `access_token`, `client_id` and `code_verifier` using the OAuth2 PKCE flow.  
+6. Enter these values into Home Assistant during integration setup.  
 7. Wait a few seconds for the integration to be ready.
 
 ## Debugging
