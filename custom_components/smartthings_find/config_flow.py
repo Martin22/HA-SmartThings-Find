@@ -36,7 +36,7 @@ class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     CLIENT_ID = "ntly6zvfpn"  # Default client_id for SmartThings Find
 
     async def async_step_user(self, user_input=None):
-        """Start OAuth2 PKCE flow: generate code_verifier, code_challenge, show auth URL."""
+        """Start OAuth2 PKCE flow: generate code_verifier, code_challenge, show auth URL and QR code."""
         # Generate PKCE code_verifier and code_challenge
         code_verifier = secrets.token_urlsafe(64)
         code_challenge = base64.urlsafe_b64encode(
@@ -72,13 +72,56 @@ class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         img.save(buf, format="PNG")
         qr_b64 = py_base64.b64encode(buf.getvalue()).decode("utf-8")
 
-        # Show form with QR code, odkaz a pole pro autorizační kód
+        # Show form with QR code and link, no code field yet
         return self.async_show_form(
-            step_id="code",
+            step_id="user",
             description_placeholders={
                 "auth_url": auth_url,
                 "qr_code": f"data:image/png;base64,{qr_b64}"
             },
+            data_schema=vol.Schema({}),
+            last_step=False,
+        )
+
+    async def async_step_code(self, user_input=None):
+        """Receive authorization code, exchange for tokens."""
+        errors = {}
+        if user_input is not None:
+            code = user_input.get("code")
+            if not code:
+                errors["base"] = "missing_code"
+            else:
+                # Exchange code for tokens
+                async with aiohttp.ClientSession() as session:
+                    data = {
+                        "grant_type": "authorization_code",
+                        "code": code,
+                        "redirect_uri": self.REDIRECT_URI,
+                        "client_id": self.CLIENT_ID,
+                        "code_verifier": self.code_verifier,
+                    }
+                    async with session.post(self.OAUTH2_TOKEN_URL, data=data) as resp:
+                        if resp.status != 200:
+                            errors["base"] = "token_error"
+                        else:
+                            tokens = await resp.json()
+                            access_token = tokens.get("access_token")
+                            refresh_token = tokens.get("refresh_token")
+                            if not access_token or not refresh_token:
+                                errors["base"] = "token_error"
+                            else:
+                                # Save tokens
+                                data = {
+                                    CONF_ACCESS_TOKEN: access_token,
+                                    CONF_CLIENT_ID: self.CLIENT_ID,
+                                    CONF_CODE_VERIFIER: self.code_verifier,
+                                    "refresh_token": refresh_token,
+                                }
+                                return self.async_create_entry(title="SmartThings Find", data=data)
+
+        return self.async_show_form(
+            step_id="code",
+            errors=errors,
             data_schema=vol.Schema({vol.Required("code"): str}),
         )
 
