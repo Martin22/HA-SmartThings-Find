@@ -48,7 +48,7 @@ class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.code_challenge = code_challenge
 
         # Build authorization URL
-        state = self.secrets.token_urlsafe(16)
+        state = secrets.token_urlsafe(16)
         auth_url = (
             f"{self.OAUTH2_AUTH_URL}?response_type=code"
             f"&client_id={self.CLIENT_ID}"
