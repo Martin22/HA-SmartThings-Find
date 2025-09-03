@@ -38,9 +38,9 @@ class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input=None):
         """Start OAuth2 PKCE flow: generate code_verifier, code_challenge, show auth URL."""
         # Generate PKCE code_verifier and code_challenge
-        code_verifier = self.secrets.token_urlsafe(64)
-        code_challenge = self.base64.urlsafe_b64encode(
-            self.hashlib.sha256(code_verifier.encode()).digest()
+        code_verifier = secrets.token_urlsafe(64)
+        code_challenge = base64.urlsafe_b64encode(
+            hashlib.sha256(code_verifier.encode()).digest()
         ).rstrip(b'=').decode('utf-8')
 
         # Store for later
@@ -59,10 +59,26 @@ class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             f"&state={state}"
         )
 
+        import qrcode
+        from io import BytesIO
+        import base64 as py_base64
+
+        # Generate QR code as base64 PNG
+        qr = qrcode.QRCode(box_size=6, border=2)
+        qr.add_data(auth_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = BytesIO()
+        img.save(buf, format="PNG")
+        qr_b64 = py_base64.b64encode(buf.getvalue()).decode("utf-8")
+
         # Show form with link and field for code
         return self.async_show_form(
             step_id="code",
-            description_placeholders={"auth_url": auth_url},
+            description_placeholders={
+                "auth_url": auth_url,
+                "qr_code": f"data:image/png;base64,{qr_b64}"
+            },
             data_schema=vol.Schema({vol.Required("code"): str}),
         )
 
