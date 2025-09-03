@@ -78,6 +78,7 @@ class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user",
+            description="<b>Přihlášení SmartThings Find</b><br><br>1. Otevřete <a href='{auth_url}' target='_blank'>tento odkaz</a> nebo naskenujte QR kód.<br><br><img src='{qr_code}' alt='QR kód' /><br><br>2. Přihlaste se Samsung účtem a zkopírujte autorizační kód.<br><br>Pokračujte tlačítkem níže.",
             description_placeholders={
                 "auth_url": auth_url,
                 "qr_code": f"data:image/png;base64,{qr_b64}"
