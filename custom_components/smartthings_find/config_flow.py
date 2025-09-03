@@ -72,7 +72,7 @@ class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         img.save(buf, format="PNG")
         qr_b64 = py_base64.b64encode(buf.getvalue()).decode("utf-8")
 
-        # Show form with link and field for code
+        # Show form with QR code, odkaz a pole pro autorizační kód
         return self.async_show_form(
             step_id="code",
             description_placeholders={
@@ -190,37 +190,9 @@ class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     #         )
     #     return self.async_show_progress_done(next_step_id="finish")
 
-    async def async_step_user(self, user_input=None):
-        """Redirect to finish step immediately."""
-        return await self.async_step_finish(user_input)
+    # async_step_user je již definována výše (QR kód + odkaz + pole pro kód)
 
-    async def async_step_finish(self, user_input=None):
-        """Prompt for OAuth2 PKCE credentials and create entry."""
-        errors = {}
-        if user_input is not None:
-            access_token = user_input.get(CONF_ACCESS_TOKEN)
-            client_id = user_input.get(CONF_CLIENT_ID)
-            code_verifier = user_input.get(CONF_CODE_VERIFIER)
-            if not access_token or not client_id or not code_verifier:
-                errors["base"] = "missing_oauth2_pkce"
-            else:
-                data = {
-                    CONF_ACCESS_TOKEN: access_token,
-                    CONF_CLIENT_ID: client_id,
-                    CONF_CODE_VERIFIER: code_verifier
-                }
-                return self.async_create_entry(title="SmartThings Find", data=data)
-
-        data_schema = vol.Schema({
-            vol.Required(CONF_ACCESS_TOKEN): str,
-            vol.Required(CONF_CLIENT_ID): str,
-            vol.Required(CONF_CODE_VERIFIER): str
-        })
-        return self.async_show_form(
-            step_id="finish",
-            data_schema=data_schema,
-            errors=errors
-        )
+    # async_step_finish odstraněna, flow je řešen v async_step_user/code
 
     # async def async_step_finish(self, user_input=None):
     #     if self.error:
