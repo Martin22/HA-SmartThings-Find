@@ -59,29 +59,15 @@ class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             f"&state={state}"
         )
 
-        import qrcode
-        from io import BytesIO
-        import base64 as py_base64
-
-        # Generate QR code as base64 PNG
-        qr = qrcode.QRCode(box_size=6, border=2)
-        qr.add_data(auth_url)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
-        buf = BytesIO()
-        img.save(buf, format="PNG")
-        qr_b64 = py_base64.b64encode(buf.getvalue()).decode("utf-8")
-
-        # Show form with QR code and link, button to continue
+        # Zjednodušení: zobrazit pouze odkaz
         if user_input is not None:
             return await self.async_step_code()
 
         return self.async_show_form(
             step_id="user",
-            description="<b>Přihlášení SmartThings Find</b><br><br>1. Otevřete <a href='{auth_url}' target='_blank'>tento odkaz</a> nebo naskenujte QR kód.<br><br><img src='{qr_code}' alt='QR kód' /><br><br>2. Přihlaste se Samsung účtem a zkopírujte autorizační kód.<br><br>Pokračujte tlačítkem níže.",
+            description="<b>Přihlášení SmartThings Find</b><br><br>1. Otevřete <a href='{auth_url}' target='_blank'>tento odkaz</a>.<br><br>2. Přihlaste se Samsung účtem a zkopírujte autorizační kód.<br><br>Pokračujte tlačítkem níže.",
             description_placeholders={
-                "auth_url": auth_url,
-                "qr_code": f"data:image/png;base64,{qr_b64}"
+                "auth_url": auth_url
             },
             data_schema=vol.Schema({}),
         )
@@ -122,7 +108,7 @@ class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                 }
                                 return self.async_create_entry(title="SmartThings Find", data=data)
 
-        # Zobrazit QR kód a URL i v tomto kroku
+        # Zjednodušení: zobrazit pouze odkaz
         auth_url = (
             f"{self.OAUTH2_AUTH_URL}?response_type=code"
             f"&client_id={self.CLIENT_ID}"
@@ -131,24 +117,12 @@ class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             f"&code_challenge_method=S256"
             f"&scope=iot.client"
         )
-        import qrcode
-        from io import BytesIO
-        import base64 as py_base64
-        qr = qrcode.QRCode(box_size=6, border=2)
-        qr.add_data(auth_url)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
-        buf = BytesIO()
-        img.save(buf, format="PNG")
-        qr_b64 = py_base64.b64encode(buf.getvalue()).decode("utf-8")
-
         return self.async_show_form(
             step_id="code",
             errors=errors,
-            description="<b>Přihlášení SmartThings Find</b><br><br>1. Otevřete <a href='{auth_url}' target='_blank'>tento odkaz</a> nebo naskenujte QR kód.<br><br><img src='{qr_code}' alt='QR kód' /><br><br>2. Přihlaste se Samsung účtem a zkopírujte autorizační kód.<br><br>Zadejte jej níže.",
+            description="<b>Přihlášení SmartThings Find</b><br><br>1. Otevřete <a href='{auth_url}' target='_blank'>tento odkaz</a>.<br><br>2. Přihlaste se Samsung účtem a zkopírujte autorizační kód.<br><br>Zadejte jej níže.",
             description_placeholders={
-                "auth_url": auth_url,
-                "qr_code": f"data:image/png;base64,{qr_b64}"
+                "auth_url": auth_url
             },
             data_schema=vol.Schema({vol.Required("code"): str}),
         )
