@@ -65,11 +65,10 @@ class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user",
-            description="<b>Přihlášení SmartThings Find</b><br><br>1. Otevřete <a href='{auth_url}' target='_blank'>tento odkaz</a>.<br><br>2. Přihlaste se Samsung účtem a zkopírujte autorizační kód.<br><br>Pokračujte tlačítkem níže.",
+            data_schema=vol.Schema({}),
             description_placeholders={
                 "auth_url": auth_url
             },
-            data_schema=vol.Schema({}),
         )
 
     async def async_step_code(self, user_input=None):
@@ -120,11 +119,10 @@ class SmartThingsFindConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="code",
             errors=errors,
-            description="<b>Přihlášení SmartThings Find</b><br><br>1. Otevřete <a href='{auth_url}' target='_blank'>tento odkaz</a>.<br><br>2. Přihlaste se Samsung účtem a zkopírujte autorizační kód.<br><br>Zadejte jej níže.",
+            data_schema=vol.Schema({vol.Required("code"): str}),
             description_placeholders={
                 "auth_url": auth_url
             },
-            data_schema=vol.Schema({vol.Required("code"): str}),
         )
 
     # Odstraněna duplicitní definice async_step_code
